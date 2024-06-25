@@ -41,6 +41,7 @@ jobs:
     - name: Deploy to server
       run: |
         rsync -avz --delete dist/ ubuntu@rr.dev.pauloduarte.tec.br:/usr/local/src/nginx-docker/reddit/web
+        ssh ubuntu@rr.dev.pauloduarte.tec.br 'cd /usr/local/src/nginx-docker && docker-compose stop && docker-compose up --build -d'
 
       env:
         SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
