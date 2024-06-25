@@ -183,6 +183,7 @@ export default {
   margin-bottom: 20px;
   border: 1px solid #ccc;
   padding: 10px;
+  overflow: hidden;
 }
 
 .gallery-item {
