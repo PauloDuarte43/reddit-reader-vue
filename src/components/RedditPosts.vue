@@ -264,42 +264,5 @@ export default {
   background-color: #007bff;
   color: #fff;
   cursor: pointer;
-}
-
-/* Estilizando a tag video */
-video {
-    width: 100%; /* Define a largura do vídeo */
-    height: auto; /* Mantém a proporção original do vídeo */
-}
-
-/* Estilizando os controles de vídeo */
-video::-webkit-media-controls {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background-color: rgba(0, 0, 0, 0.5); /* Cor do fundo dos controles */
-    padding: 10px; /* Espaçamento interno dos controles */
-}
-
-video::-webkit-media-controls-play-button {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 50px; /* Largura do botão de play */
-    height: 50px; /* Altura do botão de play */
-    background-color: rgba(255, 0, 0, 0.7); /* Cor do botão de play */
-    border-radius: 50%; /* Formato circular do botão */
-    border: none; /* Sem borda */
-    cursor: pointer; /* Cursor de ponteiro ao passar por cima */
-}
-
-video::-webkit-media-controls-play-button:focus {
-    outline: none; /* Remove a borda de foco */
-}
-
-video::-webkit-media-controls-play-button::before {
-    content: '\25B6'; /* Ícone de play */
-    font-size: 24px; /* Tamanho do ícone */
-    color: #fff; /* Cor do ícone */
-}
+} 
 </style>
