@@ -4,9 +4,18 @@
       <input v-model="searchQuery" @keyup.enter="performSearch" type="text" placeholder="Pesquisar...">
       <button @click="performSearch">Pesquisar</button>
     </div>
-    <button @click="returnToBestJson" v-if="!loading && posts.length > 0">Melhores</button>
+    <button @click="updateSubreddit('best')" v-if="!loading && posts.length > 0">Melhores</button>
+    <button @click="updateSubreddit('top')" v-if="!loading && posts.length > 0">Mais Votados</button>
     <div v-for="post in posts" :key="post.data.id" class="post">
       <!-- <small>{{ post.data }}</small> -->
+      <div
+        v-if="post.data.over_18 && !showOver18Posts"
+        class="overlay"
+        @click="confirmOver18"
+      >
+        <p>Este post é marcado como conteúdo para maiores de 18 anos.</p>
+        <p>Clique para confirmar que deseja ver o conteúdo.</p>
+      </div>
       <h2>
         {{ post.data.title }}
         <a :href="post.data.url" target="_blank" class="post-link">
@@ -22,10 +31,10 @@
         <p><a :href="getIframeHref(post.data.secure_media_embed.content)">via RedGIFs</a></p>
       </div> -->
       <div class="video-player">
-        <video data-vid-1 v-if="post.data.preview && post.data.preview.reddit_video_preview && post.data.preview.reddit_video_preview.fallback_url" controls autoplay>
+        <video data-vid-1 v-if="post.data.preview && post.data.preview.reddit_video_preview && post.data.preview.reddit_video_preview.fallback_url" controls>
           <source :src="post.data.preview.reddit_video_preview.fallback_url">
         </video>
-        <video data-vid-2 v-if="post.data.media && post.data.media.reddit_video && post.data.media.reddit_video.fallback_url" controls autoplay>
+        <video data-vid-2 v-if="post.data.media && post.data.media.reddit_video && post.data.media.reddit_video.fallback_url" controls>
           <source :src="post.data.media.reddit_video.fallback_url">
         </video>
       </div>
@@ -51,7 +60,7 @@
     </div>
     <div v-if="loading" class="loading">Carregando...</div>
     <button @click="returnToTop" class="return-to-top" v-show="posts.length > 0">
-      Voltar para o topo
+      Recarregar
     </button>
   </div>
 </template>
@@ -64,6 +73,7 @@ export default {
       posts: [],
       after: null,
       loading: false,
+      showOver18Posts: false,
       currentSubreddit: 'best',
       searchQuery: ''
     };
@@ -81,16 +91,22 @@ export default {
     window.removeEventListener('scroll', this.handleScroll);
   },
   methods: {
+    confirmOver18() {
+      if (confirm('Este conteúdo é para maiores de 18 anos. Deseja vê-lo?')) {
+        this.showOver18Posts = true;
+      }
+    },
     async fetchPosts() {
       if (this.loading) return;
       this.loading = true;
 
       try {
-        let url = `https://www.reddit.com/${this.currentSubreddit}.json${this.after ? `?after=${this.after}` : ''}`;
+        let url = `https://www.reddit.com/${this.currentSubreddit}.json${this.after ? `?after=${this.after}&limit=5` : '?limit=5'}`;
         if (this.currentSubreddit === 'search') {
           url = `https://www.reddit.com/search.json?q=${encodeURIComponent(this.searchQuery)}&nsfw=1&include_over_18=on${this.after ? `&after=${this.after}` : ''}`;
         }
-        const response = await fetch(url);
+        // this fetch need to follow redirect and cors policy
+        const response = await fetch(url, { redirect: 'follow', mode: 'cors' });
         const data = await response.json();
 
         this.after = data.data.after;
@@ -106,23 +122,23 @@ export default {
         this.fetchPosts();
       }
     },
-    returnToBestJson() {
-      this.currentSubreddit = 'best'; // Define o subreddit de volta para 'best'
-      this.posts = []; // Limpa os posts atuais
-      this.after = null; // Reinicia o cursor de paginação
-      this.fetchPosts(); // Carrega novamente os posts de 'best'
-    },
     async updateSubreddit(subredditName) {
-      this.currentSubreddit = subredditName; // Atualiza o subreddit atual
-      this.posts = []; // Limpa os posts atuais
-      this.after = null; // Reinicia o cursor de paginação
-      this.fetchPosts(); // Carrega novamente os posts do novo subreddit
+      if (this.loading) return;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (subredditName.startsWith('u/')) {
+        subredditName = subredditName.replace('u/', 'user/');
+      }
+      this.currentSubreddit = subredditName;
+      this.posts = [];
+      this.after = null;
+      this.fetchPosts();
     },
     performSearch() {
-      this.currentSubreddit = 'search'; // Define o subreddit para 'search'
-      this.posts = []; // Limpa os posts atuais
-      this.after = null; // Reinicia o cursor de paginação
-      this.fetchPosts(); // Carrega os posts da pesquisa
+      if (this.loading) return;
+      this.currentSubreddit = 'search';
+      this.posts = [];
+      this.after = null;
+      this.fetchPosts();
     },
     decodeHTML(html) {
       html = html.replace(/position:absolute/g, 'position:relative');
@@ -136,22 +152,19 @@ export default {
       return secureMediaEmbed && Object.keys(secureMediaEmbed).length > 0;
     },
     renderIframe(content) {
-      // Extrai a URL do conteúdo HTML
       const regex = /src=['"]([^'"]+)['"]/;
       const match = content.match(regex);
       const url = match ? match[1] : '';
 
-      // Retorna o HTML completo do iframe com a URL inserida dinamicamente
       return `<div style='position:relative; padding-bottom:177.78%'><iframe src='${url}' frameBorder='0' scrolling='no' width='100%' height='100%' style='position:absolute; top:0; left:0;' allowFullScreen></iframe></div>`;
     },
     getIframeHref(content) {
-      // Extrai a URL do conteúdo HTML
       const regex = /src=['"]([^'"]+)['"]/;
       const match = content.match(regex);
       if (match && match[1]) {
-        return match[1].replace('/ifr/', '/watch/'); // Substitui '/ifr/' por '/watch/' para o link do RedGIFs
+        return match[1].replace('/ifr/', '/watch/');
       } else {
-        return ''; // Retorna vazio se não encontrar a URL
+        return '';
       }
     },
     decodeHtmlEntities(html) {
@@ -180,10 +193,28 @@ export default {
 
 <style scoped>
 .post {
+  position: relative;
   margin-bottom: 20px;
   border: 1px solid #ccc;
   padding: 10px;
   overflow: hidden;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.95);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+  z-index: 10;
 }
 
 .gallery-item {
@@ -233,5 +264,42 @@ export default {
   background-color: #007bff;
   color: #fff;
   cursor: pointer;
+}
+
+/* Estilizando a tag video */
+video {
+    width: 100%; /* Define a largura do vídeo */
+    height: auto; /* Mantém a proporção original do vídeo */
+}
+
+/* Estilizando os controles de vídeo */
+video::-webkit-media-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.5); /* Cor do fundo dos controles */
+    padding: 10px; /* Espaçamento interno dos controles */
+}
+
+video::-webkit-media-controls-play-button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 50px; /* Largura do botão de play */
+    height: 50px; /* Altura do botão de play */
+    background-color: rgba(255, 0, 0, 0.7); /* Cor do botão de play */
+    border-radius: 50%; /* Formato circular do botão */
+    border: none; /* Sem borda */
+    cursor: pointer; /* Cursor de ponteiro ao passar por cima */
+}
+
+video::-webkit-media-controls-play-button:focus {
+    outline: none; /* Remove a borda de foco */
+}
+
+video::-webkit-media-controls-play-button::before {
+    content: '\25B6'; /* Ícone de play */
+    font-size: 24px; /* Tamanho do ícone */
+    color: #fff; /* Cor do ícone */
 }
 </style>
