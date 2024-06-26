@@ -3,6 +3,10 @@
     <div class="search-container">
       <input v-model="searchQuery" @keyup.enter="performSearch" type="text" placeholder="Pesquisar...">
       <button @click="performSearch">Pesquisar</button>
+      <label>
+        <input type="checkbox" :checked="includeOver18" @change="handleCheckboxChange">
+        +18
+      </label>
     </div>
     <button @click="updateSubreddit('best')" v-if="!loading && posts.length > 0">Melhores</button>
     <button @click="updateSubreddit('top')" v-if="!loading && posts.length > 0">Mais Votados</button>
@@ -74,6 +78,7 @@ export default {
       after: null,
       loading: false,
       showOver18Posts: false,
+      includeOver18: false,
       currentSubreddit: 'best',
       searchQuery: ''
     };
@@ -91,6 +96,18 @@ export default {
     window.removeEventListener('scroll', this.handleScroll);
   },
   methods: {
+    handleCheckboxChange(event) {
+      if (event.target.checked) {
+        if (confirm('Este conteúdo é para maiores de 18 anos. Deseja incluí-lo na pesquisa?')) {
+          this.includeOver18 = true;
+        } else {
+          event.target.checked = false;
+        }
+      } else {
+        this.includeOver18 = false;
+      }
+      this.returnToTop();
+    },
     confirmOver18() {
       if (confirm('Este conteúdo é para maiores de 18 anos. Deseja vê-lo?')) {
         this.showOver18Posts = true;
@@ -103,7 +120,7 @@ export default {
       try {
         let url = `https://www.reddit.com/${this.currentSubreddit}.json${this.after ? `?after=${this.after}&limit=5` : '?limit=5'}`;
         if (this.currentSubreddit === 'search') {
-          url = `https://www.reddit.com/search.json?q=${encodeURIComponent(this.searchQuery)}&nsfw=1&include_over_18=on${this.after ? `&after=${this.after}` : ''}`;
+          url = `https://www.reddit.com/search.json?q=${encodeURIComponent(this.searchQuery)}&nsfw=1&include_over_18=${this.includeOver18 ? 'on' : 'off'}${this.after ? `&after=${this.after}` : ''}`;
         }
         // this fetch need to follow redirect and cors policy
         const response = await fetch(url, { redirect: 'follow', mode: 'cors' });
