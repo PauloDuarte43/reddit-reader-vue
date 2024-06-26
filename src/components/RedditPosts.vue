@@ -31,10 +31,10 @@
         <p><a :href="getIframeHref(post.data.secure_media_embed.content)">via RedGIFs</a></p>
       </div> -->
       <div class="video-player">
-        <video data-vid-1 v-if="post.data.preview && post.data.preview.reddit_video_preview && post.data.preview.reddit_video_preview.fallback_url" controls>
+        <video :data-video-id="post.data.id + '_1'" v-if="post.data.preview && post.data.preview.reddit_video_preview && post.data.preview.reddit_video_preview.fallback_url" controls>
           <source :src="post.data.preview.reddit_video_preview.fallback_url">
         </video>
-        <video data-vid-2 v-if="post.data.media && post.data.media.reddit_video && post.data.media.reddit_video.fallback_url" controls>
+        <video :data-video-id="post.data.id + '_2'" v-if="post.data.media && post.data.media.reddit_video && post.data.media.reddit_video.fallback_url" controls>
           <source :src="post.data.media.reddit_video.fallback_url">
         </video>
       </div>
@@ -111,11 +111,35 @@ export default {
 
         this.after = data.data.after;
         this.posts.push(...data.data.children);
+        this.$nextTick(this.initVideoObservers);
       } catch (error) {
         console.error('Error fetching posts:', error);
       } finally {
         this.loading = false;
       }
+    },
+    initVideoObservers() {
+      const options = {
+        threshold: 0.5 // Define o threshold conforme necessário
+      };
+
+      const videoElements = this.$el.querySelectorAll('.video-player video');
+      const observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          const video = entry.target;
+          if (entry.isIntersecting) {
+            video.play().catch(error => {
+              console.error('Erro ao reproduzir vídeo:', error);
+            });
+          } else {
+            video.pause();
+          }
+        });
+      }, options);
+
+      videoElements.forEach(video => {
+        observer.observe(video);
+      });
     },
     handleScroll() {
       if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight) {
