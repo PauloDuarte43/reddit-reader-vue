@@ -13,7 +13,8 @@
     "@fortawesome/vue-fontawesome": "^3.0.8",
     "axios": "^1.7.2",
     "bootstrap-vue": "^2.23.1",
-    "vue": "^3.4.29"
+    "vue": "^3.4.29",
+    "vue-gtm": "^3.5.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.5",
