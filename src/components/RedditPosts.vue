@@ -1,15 +1,21 @@
 <template>
   <div>
-    <div class="search-container">
-      <input v-model="searchQuery" @keyup.enter="performSearch" type="text" placeholder="Pesquisar...">
-      <button @click="performSearch">Pesquisar</button>
-      <label>
-        <input type="checkbox" :checked="includeOver18" @change="handleCheckboxChange">
-        +18
-      </label>
+    <div class="top-bar">
+      <div class="search-container">
+        <input v-model="searchQuery" @keyup.enter="performSearch" type="text" placeholder="Pesquisar...">
+        <button @click="performSearch">Pesquisar</button>
+        <label>
+          <input type="checkbox" :checked="includeOver18" @change="handleCheckboxChange">
+          +18
+        </label>
+      </div>
+      <button @click="updateSubreddit('best')" v-if="!loading && posts.length > 0">Melhores</button>
+      <button @click="updateSubreddit('top')" v-if="!loading && posts.length > 0">Mais Votados</button>
+      <div class="current-subreddit">
+        <h2>{{ this.currentSubreddit }}</h2>
+      </div>
     </div>
-    <button @click="updateSubreddit('best')" v-if="!loading && posts.length > 0">Melhores</button>
-    <button @click="updateSubreddit('top')" v-if="!loading && posts.length > 0">Mais Votados</button>
+
     <div v-for="post in posts" :key="post.data.id" class="post">
       <!-- <small>{{ post.data }}</small> -->
       <div
@@ -30,10 +36,6 @@
       </h2>
       <p>{{ post.data.selftext }}</p>
 
-      <!-- <div v-if="hasSecureMediaEmbed(post.data.secure_media_embed)">
-        <div v-html="renderIframe(post.data.secure_media_embed.content)"></div>
-        <p><a :href="getIframeHref(post.data.secure_media_embed.content)">via RedGIFs</a></p>
-      </div> -->
       <div class="video-player">
         <video :data-video-id="post.data.id + '_1'" v-if="post.data.preview && post.data.preview.reddit_video_preview && post.data.preview.reddit_video_preview.fallback_url" controls>
           <source :src="post.data.preview.reddit_video_preview.fallback_url">
@@ -41,6 +43,12 @@
         <video :data-video-id="post.data.id + '_2'" v-if="post.data.media && post.data.media.reddit_video && post.data.media.reddit_video.fallback_url" controls>
           <source :src="post.data.media.reddit_video.fallback_url">
         </video>
+        <div v-if="!(post.data.preview && post.data.preview.reddit_video_preview && post.data.preview.reddit_video_preview.fallback_url && post.data.media && post.data.media.reddit_video && post.data.media.reddit_video.fallback_url)">
+          <div v-if="hasSecureMediaEmbed(post.data.secure_media_embed)">
+            <div v-html="renderIframe(post.data.secure_media_embed.content)"></div>
+            <p><a :href="getIframeHref(post.data.secure_media_embed.content)">via RedGIFs</a></p>
+          </div>
+        </div>
       </div>
 
       <div v-if="post.data.media_metadata && Object.keys(post.data.media_metadata).length > 0" class="image-gallery">
@@ -52,6 +60,15 @@
       <div v-if="post.data.preview && post.data.preview.images && !(post.data.media && post.data.media.reddit_video && post.data.media.reddit_video.fallback_url) && !(post.data.preview && post.data.preview.reddit_video_preview && post.data.preview.reddit_video_preview.fallback_url)">
         <div v-for="image in post.data.preview.images">
           <img data-img-2 v-if="image.source" :src="urlDecode(image.source.url)" width="100%" >
+        </div>
+      </div>
+      <div v-else>
+        <div v-if="isImg(post.data.link_url)">
+          <img :src="post.data.link_url" width="100%">
+        </div>
+
+        <div v-if="isImg(post.data.url)">
+          <img :src="post.data.url" width="100%">
         </div>
       </div>
 
@@ -80,6 +97,7 @@ export default {
       showOver18Posts: false,
       includeOver18: false,
       currentSubreddit: 'best',
+      history: [],
       searchQuery: ''
     };
   },
@@ -95,7 +113,34 @@ export default {
   destroyed() {
     window.removeEventListener('scroll', this.handleScroll);
   },
+  mounted() {
+    this.removeQueryString();
+    window.history.pushState(null, document.title, window.location.href);
+    window.addEventListener('popstate', this.handlePopState);
+  },
+  beforeDestroy() {
+    window.removeEventListener('popstate', this.handlePopState);
+  },
   methods: {
+    removeQueryString() {
+      const url = window.location.protocol + '//' + window.location.host + window.location.pathname;
+      window.history.replaceState({ path: url }, '', url);
+    },
+    isImg(url) {
+      return url && (url.endsWith('.jpg') || url.endsWith('.png') || url.endsWith('.gif') || url.endsWith('.jpeg'));
+    },
+    handlePopState(event) {
+      window.history.pushState(null, document.title, window.location.href);
+      this.executeCustomAction();
+    },
+    executeCustomAction() {
+      let newSubreddit = this.history.pop();
+      if (!newSubreddit) {
+        newSubreddit = 'best';
+      }
+      this.updateSubreddit(newSubreddit);
+      console.log('Navegação interceptada e ação executada.');
+    },
     handleCheckboxChange(event) {
       if (event.target.checked) {
         if (confirm('Este conteúdo é para maiores de 18 anos. Deseja incluí-lo na pesquisa?')) {
@@ -169,6 +214,7 @@ export default {
       if (subredditName.startsWith('u/')) {
         subredditName = subredditName.replace('u/', 'user/');
       }
+      this.history.push(this.currentSubreddit);
       this.currentSubreddit = subredditName;
       this.posts = [];
       this.after = null;
@@ -197,6 +243,9 @@ export default {
       const match = content.match(regex);
       const url = match ? match[1] : '';
 
+      return `<div style='position:relative; padding-bottom:177.78%'><iframe src='${url}' frameBorder='0' scrolling='no' width='100%' height='100%' style='position:absolute; top:0; left:0;' allowFullScreen></iframe></div>`;
+    },
+    renderIframeUrl(url) {
       return `<div style='position:relative; padding-bottom:177.78%'><iframe src='${url}' frameBorder='0' scrolling='no' width='100%' height='100%' style='position:absolute; top:0; left:0;' allowFullScreen></iframe></div>`;
     },
     getIframeHref(content) {
@@ -239,6 +288,22 @@ export default {
   border: 1px solid #ccc;
   padding: 10px;
   overflow: hidden;
+}
+
+.current-subreddit {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.top-bar {
+  background: var(--color-background);
+  position: sticky;
+  top: 0;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+  z-index: 100;
 }
 
 .overlay {
