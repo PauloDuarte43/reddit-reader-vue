@@ -43,10 +43,11 @@
         <video :data-video-id="post.data.id + '_2'" v-if="post.data.media && post.data.media.reddit_video && post.data.media.reddit_video.fallback_url" controls>
           <source :src="post.data.media.reddit_video.fallback_url">
         </video>
-        <div v-if="!(post.data.preview && post.data.preview.reddit_video_preview && post.data.preview.reddit_video_preview.fallback_url && post.data.media && post.data.media.reddit_video && post.data.media.reddit_video.fallback_url)">
+        <div v-if="!(post.data.preview && post.data.preview.reddit_video_preview && post.data.preview.reddit_video_preview.fallback_url) && !(post.data.preview && post.data.preview.reddit_video_preview && post.data.preview.reddit_video_preview.fallback_url)">
           <div v-if="hasSecureMediaEmbed(post.data.secure_media_embed)">
             <div v-html="renderIframe(post.data.secure_media_embed.content)"></div>
-            <p><a :href="getIframeHref(post.data.secure_media_embed.content)">via RedGIFs</a></p>
+            <!-- <div v-html="renderIframe(post.data.secure_media_embed.content)"></div> -->
+            <!-- <p><a :href="getIframeHref(post.data.secure_media_embed.content)">via RedGIFs</a></p> -->
           </div>
         </div>
       </div>
@@ -236,6 +237,7 @@ export default {
     makeVideoIframe() {
     },
     hasSecureMediaEmbed(secureMediaEmbed) {
+      console.log(secureMediaEmbed);
       return secureMediaEmbed && Object.keys(secureMediaEmbed).length > 0;
     },
     renderIframe(content) {
@@ -243,7 +245,10 @@ export default {
       const match = content.match(regex);
       const url = match ? match[1] : '';
 
-      return `<div style='position:relative; padding-bottom:177.78%'><iframe src='${url}' frameBorder='0' scrolling='no' width='100%' height='100%' style='position:absolute; top:0; left:0;' allowFullScreen></iframe></div>`;
+      if (url.includes('redgifs.com')) {
+        return `<div style='position:relative; padding-bottom:177.78%'><iframe src='${url}' frameBorder='0' scrolling='no' width='100%' height='100%' style='position:absolute; top:0; left:0;' allowFullScreen></iframe></div>`;
+      }
+      return this.decodeHTML(content);
     },
     renderIframeUrl(url) {
       return `<div style='position:relative; padding-bottom:177.78%'><iframe src='${url}' frameBorder='0' scrolling='no' width='100%' height='100%' style='position:absolute; top:0; left:0;' allowFullScreen></iframe></div>`;
