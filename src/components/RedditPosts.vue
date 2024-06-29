@@ -152,6 +152,7 @@ export default {
       } else {
         this.includeOver18 = false;
       }
+      this.currentSubreddit = 'best';
       this.returnToTop();
     },
     confirmOver18() {
@@ -167,6 +168,8 @@ export default {
         let url = `https://www.reddit.com/${this.currentSubreddit}.json${this.after ? `?after=${this.after}&limit=5` : '?limit=5'}`;
         if (this.currentSubreddit === 'search') {
           url = `https://www.reddit.com/search.json?q=${encodeURIComponent(this.searchQuery)}&nsfw=1&include_over_18=${this.includeOver18 ? 'on' : 'off'}${this.after ? `&after=${this.after}` : ''}`;
+          this.searchQuery = '';
+          document.activeElement.blur();
         }
         // this fetch need to follow redirect and cors policy
         const response = await fetch(url, { redirect: 'follow', mode: 'cors' });
