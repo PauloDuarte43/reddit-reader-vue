@@ -76,7 +76,7 @@
       <div class="post-details">
         <p>Score: {{ post.data.score }}</p>
         <p>Comments: {{ post.data.num_comments }}</p>
-        <p>Author: {{ post.data.author }}</p>
+        <p>Author: <button @click="updateSubreddit('u/'+post.data.author)">{{ post.data.author }}</button></p>
         <button @click="updateSubreddit(post.data.subreddit_name_prefixed)">{{ post.data.subreddit_name_prefixed }}</button>
       </div>
     </div>
