@@ -9,10 +9,21 @@
           +18
         </label>
       </div>
-      <button @click="updateSubreddit('best')" v-if="!loading && posts.length > 0">Melhores</button>
-      <button @click="updateSubreddit('top')" v-if="!loading && posts.length > 0">Mais Votados</button>
+      <div class="subreddit-buttons">
+        <button @click="updateSubreddit('best', true)" v-if="!loading && posts.length > 0">Melhores</button>
+        <button @click="updateSubreddit('new', true)" v-if="!loading && posts.length > 0">Mais Recentes</button>
+        <button @click="updateSubreddit('top', true)" v-if="!loading && posts.length > 0">Mais Votados</button>
+        <button @click="updateSubreddit('hot', true)" v-if="!loading && posts.length > 0">Mais Quentes</button>
+      </div>
       <div class="current-subreddit">
         <h2>{{ this.currentSubreddit }}</h2>
+        <select v-model="orderBy" @change="changeOrder" v-show="isSubbreddit()">
+          <option value="best">Melhores</option>
+          <option value="new">Mais Recentes</option>
+          <option value="top">Mais Votados</option>
+          <option value="hot">Mais Quentes</option>
+          <option value="controversial">Mais Controversos</option>
+        </select>
       </div>
     </div>
 
@@ -27,8 +38,8 @@
         <p>Clique para confirmar que deseja ver o conteúdo.</p>
       </div>
       <h2>
-        {{ post.data.title }}
         <a :href="post.data.url" target="_blank" class="post-link">
+          {{ post.data.title }}
           <svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" fill="#ff0000" fill-rule="evenodd" clip-rule="evenodd">
             <path d="M14.851 11.923c-.179-.641-.521-1.246-1.025-1.749-1.562-1.562-4.095-1.563-5.657 0l-4.998 4.998c-1.562 1.563-1.563 4.095 0 5.657 1.562 1.563 4.096 1.561 5.656 0l3.842-3.841.333.009c.404 0 .802-.04 1.189-.117l-4.657 4.656c-.975.976-2.255 1.464-3.535 1.464-1.28 0-2.56-.488-3.535-1.464-1.952-1.951-1.952-5.12 0-7.071l4.998-4.998c.975-.976 2.256-1.464 3.536-1.464 1.279 0 2.56.488 3.535 1.464.493.493.861 1.063 1.105 1.672l-.787.784zm-5.703.147c.178.643.521 1.25 1.026 1.756 1.562 1.563 4.096 1.561 5.656 0l4.999-4.998c1.563-1.562 1.563-4.095 0-5.657-1.562-1.562-4.095-1.563-5.657 0l-3.841 3.841-.333-.009c-.404 0-.802.04-1.189.117l4.656-4.656c.975-.976 2.256-1.464 3.536-1.464 1.279 0 2.56.488 3.535 1.464 1.951 1.951 1.951 5.119 0 7.071l-4.999 4.998c-.975.976-2.255 1.464-3.535 1.464-1.28 0-2.56-.488-3.535-1.464-.494-.495-.863-1.067-1.107-1.678l.788-.785z"/>
           </svg>
@@ -58,7 +69,7 @@
         </div>
       </div>      
 
-      <div v-if="post.data.preview && post.data.preview.images && !(post.data.media && post.data.media.reddit_video && post.data.media.reddit_video.fallback_url) && !(post.data.preview && post.data.preview.reddit_video_preview && post.data.preview.reddit_video_preview.fallback_url)">
+      <div v-if="post.data.preview && post.data.preview.images && !(post.data.media && post.data.media.reddit_video && post.data.media.reddit_video.fallback_url) && !(post.data.preview && post.data.preview.reddit_video_preview && post.data.preview.reddit_video_preview.fallback_url) && !hasSecureMediaEmbed(post.data.secure_media_embed)">
         <div v-for="image in post.data.preview.images">
           <img data-img-2 v-if="image.source" :src="urlDecode(image.source.url)" width="100%" >
         </div>
@@ -98,6 +109,7 @@ export default {
       showOver18Posts: false,
       includeOver18: false,
       currentSubreddit: 'best',
+      orderBy: 'best',
       history: [],
       searchQuery: ''
     };
@@ -106,10 +118,14 @@ export default {
     const urlParams = new URLSearchParams(window.location.search);
     const subredditFromQuery = urlParams.get('subreddit');
     if (subredditFromQuery) {
+      dataLayer.push({ event: 'subreddit', subreddit: subredditFromQuery });
       this.currentSubreddit = subredditFromQuery;
     }
     this.fetchPosts();
     window.addEventListener('scroll', this.handleScroll);
+    this.showOver18Posts = localStorage.getItem('showOver18Posts') === 'true';
+    this.includeOver18 = localStorage.getItem('includeOver18') === 'true';
+    this.orderBy = localStorage.getItem('orderBy') || 'best';
   },
   destroyed() {
     window.removeEventListener('scroll', this.handleScroll);
@@ -152,25 +168,47 @@ export default {
       } else {
         this.includeOver18 = false;
       }
+      localStorage.setItem('includeOver18', this.includeOver18);
       this.currentSubreddit = 'best';
+      this.returnToTop();
+    },
+    changeOrder() {
+      localStorage.setItem('orderBy', this.orderBy);
+      dataLayer.push({ event: 'orderBy', orderBy: this.orderBy });
       this.returnToTop();
     },
     confirmOver18() {
       if (confirm('Este conteúdo é para maiores de 18 anos. Deseja vê-lo?')) {
         this.showOver18Posts = true;
       }
+      localStorage.setItem('showOver18Posts', this.showOver18Posts);
     },
     async fetchPosts() {
       if (this.loading) return;
       this.loading = true;
 
       try {
-        let url = `https://www.reddit.com/${this.currentSubreddit}.json${this.after ? `?after=${this.after}&limit=5` : '?limit=5'}`;
+        let isSubbreddit = false;
+        if (this.currentSubreddit.startsWith('r/') || this.currentSubreddit.startsWith('user/')) {
+          isSubbreddit = true;
+        }
+
+        let url = `https://www.reddit.com/${this.currentSubreddit}`;
+
+        if (isSubbreddit) {
+          url += `/${this.orderBy}.json`;
+        } else {
+          url += `.json`;
+        }
+
+        url += `${this.after ? `?after=${this.after}&limit=5` : '?limit=5'}`;
+
         if (this.currentSubreddit === 'search') {
-          url = `https://www.reddit.com/search.json?q=${encodeURIComponent(this.searchQuery)}&nsfw=1&include_over_18=${this.includeOver18 ? 'on' : 'off'}${this.after ? `&after=${this.after}` : ''}`;
-          this.searchQuery = '';
+          url = `https://www.reddit.com/search.json?q=${encodeURIComponent(this.searchQuery)}&nsfw=1&sort=${this.orderBy}&include_over_18=${this.includeOver18 ? 'on' : 'off'}${this.after ? `&after=${this.after}` : ''}`;
+          // this.searchQuery = '';
           document.activeElement.blur();
         }
+
         // this fetch need to follow redirect and cors policy
         const response = await fetch(url, { redirect: 'follow', mode: 'cors' });
         const data = await response.json();
@@ -183,6 +221,9 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+    isSubbreddit() {
+      return this.currentSubreddit === 'search' || this.currentSubreddit.startsWith('r/') || this.currentSubreddit.startsWith('user/');
     },
     initVideoObservers() {
       const options = {
@@ -207,28 +248,33 @@ export default {
         observer.observe(video);
       });
     },
-    handleScroll() {
+    async handleScroll() {
       if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight) {
         this.fetchPosts();
       }
     },
-    async updateSubreddit(subredditName) {
+    async updateSubreddit(subredditName, clearSearch = false) {
       if (this.loading) return;
       window.scrollTo({ top: 0, behavior: 'smooth' });
       if (subredditName.startsWith('u/')) {
         subredditName = subredditName.replace('u/', 'user/');
       }
+      if (clearSearch) {
+        this.searchQuery = '';
+      }
       this.history.push(this.currentSubreddit);
       this.currentSubreddit = subredditName;
+      dataLayer.push({ event: 'subreddit', subreddit: subredditName });
       this.posts = [];
       this.after = null;
       this.fetchPosts();
     },
-    performSearch() {
+    async performSearch() {
       if (this.loading) return;
       this.currentSubreddit = 'search';
       this.posts = [];
       this.after = null;
+      window.dataLayer.push({ event: 'searchQuery', searchQuery: this.searchQuery });
       this.fetchPosts();
     },
     decodeHTML(html) {
@@ -240,7 +286,6 @@ export default {
     makeVideoIframe() {
     },
     hasSecureMediaEmbed(secureMediaEmbed) {
-      console.log(secureMediaEmbed);
       return secureMediaEmbed && Object.keys(secureMediaEmbed).length > 0;
     },
     renderIframe(content) {
@@ -278,7 +323,7 @@ export default {
         return encodedUrl;
       }
     },
-    returnToTop() {
+    async returnToTop() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       this.posts = [];
       this.after = null;
@@ -300,8 +345,21 @@ export default {
 
 .current-subreddit {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   margin-bottom: 10px;
+}
+
+.subreddit-buttons {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.search-container {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+
 }
 
 .top-bar {
