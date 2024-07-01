@@ -48,39 +48,39 @@
       <p>{{ post.data.selftext }}</p>
 
       <div class="video-player">
-        <video :data-video-id="post.data.id + '_1'" v-if="post.data.preview && post.data.preview.reddit_video_preview && post.data.preview.reddit_video_preview.fallback_url" controls>
-          <source :src="post.data.preview.reddit_video_preview.fallback_url">
+        <video :data-video-id="getPostMedia(post).id + '_1'" v-if="getPostMedia(post).preview && getPostMedia(post).preview.reddit_video_preview && getPostMedia(post).preview.reddit_video_preview.fallback_url" controls>
+          <source :src="getPostMedia(post).preview.reddit_video_preview.fallback_url">
         </video>
-        <video :data-video-id="post.data.id + '_2'" v-if="post.data.media && post.data.media.reddit_video && post.data.media.reddit_video.fallback_url" controls>
-          <source :src="post.data.media.reddit_video.fallback_url">
+        <video :data-video-id="getPostMedia(post).id + '_2'" v-if="getPostMedia(post).media && getPostMedia(post).media.reddit_video && getPostMedia(post).media.reddit_video.fallback_url" controls>
+          <source :src="getPostMedia(post).media.reddit_video.fallback_url">
         </video>
-        <div v-if="!(post.data.preview && post.data.preview.reddit_video_preview && post.data.preview.reddit_video_preview.fallback_url) && !(post.data.preview && post.data.preview.reddit_video_preview && post.data.preview.reddit_video_preview.fallback_url)">
-          <div v-if="hasSecureMediaEmbed(post.data.secure_media_embed)">
-            <div v-html="renderIframe(post.data.secure_media_embed.content)"></div>
+        <div v-if="!(getPostMedia(post).preview && getPostMedia(post).preview.reddit_video_preview && getPostMedia(post).preview.reddit_video_preview.fallback_url) && !(getPostMedia(post).preview && getPostMedia(post).preview.reddit_video_preview && getPostMedia(post).preview.reddit_video_preview.fallback_url)">
+          <div v-if="hasSecureMediaEmbed(getPostMedia(post).secure_media_embed)">
+            <div v-html="renderIframe(getPostMedia(post).secure_media_embed.content)"></div>
             <!-- <div v-html="renderIframe(post.data.secure_media_embed.content)"></div> -->
             <!-- <p><a :href="getIframeHref(post.data.secure_media_embed.content)">via RedGIFs</a></p> -->
           </div>
         </div>
       </div>
 
-      <div v-if="post.data.media_metadata && Object.keys(post.data.media_metadata).length > 0" class="image-gallery">
-        <div v-for="metadata in post.data.media_metadata" class="galery-item">
+      <div v-if="getPostMedia(post).media_metadata && Object.keys(getPostMedia(post).media_metadata).length > 0" class="image-gallery">
+        <div v-for="metadata in getPostMedia(post).media_metadata" class="galery-item">
           <img data-img-1 v-if="metadata.e ==='Image'" :src="urlDecode(metadata.s.u)" width="100%" >
         </div>
       </div>      
 
-      <div v-if="post.data.preview && post.data.preview.images && !(post.data.media && post.data.media.reddit_video && post.data.media.reddit_video.fallback_url) && !(post.data.preview && post.data.preview.reddit_video_preview && post.data.preview.reddit_video_preview.fallback_url) && !hasSecureMediaEmbed(post.data.secure_media_embed)">
-        <div v-for="image in post.data.preview.images">
+      <div v-if="getPostMedia(post).preview && getPostMedia(post).preview.images && !(getPostMedia(post).media && getPostMedia(post).media.reddit_video && getPostMedia(post).media.reddit_video.fallback_url) && !(getPostMedia(post).preview && getPostMedia(post).preview.reddit_video_preview && getPostMedia(post).preview.reddit_video_preview.fallback_url) && !hasSecureMediaEmbed(getPostMedia(post).secure_media_embed)">
+        <div v-for="image in getPostMedia(post).preview.images">
           <img data-img-2 v-if="image.source" :src="urlDecode(image.source.url)" width="100%" >
         </div>
       </div>
       <div v-else>
-        <div v-if="isImg(post.data.link_url)">
-          <img :src="post.data.link_url" width="100%">
+        <div v-if="isImg(getPostMedia(post).link_url)">
+          <img :src="getPostMedia(post).link_url" width="100%">
         </div>
 
-        <div v-if="isImg(post.data.url)">
-          <img :src="post.data.url" width="100%">
+        <div v-if="isImg(getPostMedia(post).url)">
+          <img :src="getPostMedia(post).url" width="100%">
         </div>
       </div>
 
@@ -205,7 +205,7 @@ export default {
 
         if (this.currentSubreddit === 'search') {
           url = `https://www.reddit.com/search.json?q=${encodeURIComponent(this.searchQuery)}&nsfw=1&sort=${this.orderBy}&include_over_18=${this.includeOver18 ? 'on' : 'off'}${this.after ? `&after=${this.after}` : ''}`;
-          // this.searchQuery = '';
+          // this.searchQuery = '';s
           document.activeElement.blur();
         }
 
@@ -224,6 +224,14 @@ export default {
     },
     isSubbreddit() {
       return this.currentSubreddit === 'search' || this.currentSubreddit.startsWith('r/') || this.currentSubreddit.startsWith('user/');
+    },
+    getPostMedia(post){
+      if (post.data && post.data.crosspost_parent_list) {
+        if (post.data.crosspost_parent_list.length > 0) {
+          return post.data.crosspost_parent_list[0];
+        }
+      }
+      return post.data;
     },
     initVideoObservers() {
       const options = {
