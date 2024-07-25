@@ -40,7 +40,7 @@ jobs:
 
     - name: Deploy to server
       run: |
-        rsync -avz --delete dist/ ofc@rr.dev.pauloduarte.tec.br:/home/opc/projects/nginx-docker/reddit/web
+        rsync -avz --delete dist/ opc@teamdraw.dev.pauloduarte.tec.br:/home/opc/projects/nginx-docker/reddit/web
         # ssh ubuntu@rr.dev.pauloduarte.tec.br 'cd /usr/local/src/nginx-docker && docker-compose stop && docker-compose up --build -d'
 
       env:
