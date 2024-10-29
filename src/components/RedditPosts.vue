@@ -118,7 +118,7 @@ export default {
     const urlParams = new URLSearchParams(window.location.search);
     const subredditFromQuery = urlParams.get('subreddit');
     if (subredditFromQuery) {
-      dataLayer.push({ event: 'subreddit', subreddit: subredditFromQuery });
+      dataLayer.push({ event: 'subreddit', subredditValue: subredditFromQuery });
       this.currentSubreddit = subredditFromQuery;
     }
     this.fetchPosts();
@@ -174,7 +174,7 @@ export default {
     },
     changeOrder() {
       localStorage.setItem('orderBy', this.orderBy);
-      dataLayer.push({ event: 'orderBy', orderBy: this.orderBy });
+      dataLayer.push({ event: 'orderBy', orderByValue: this.orderBy });
       this.returnToTop();
     },
     confirmOver18() {
@@ -272,7 +272,7 @@ export default {
       }
       this.history.push(this.currentSubreddit);
       this.currentSubreddit = subredditName;
-      dataLayer.push({ event: 'subreddit', subreddit: subredditName });
+      dataLayer.push({ event: 'subreddit', subredditValue: subredditName });
       this.posts = [];
       this.after = null;
       this.fetchPosts();
@@ -282,7 +282,7 @@ export default {
       this.currentSubreddit = 'search';
       this.posts = [];
       this.after = null;
-      window.dataLayer.push({ event: 'searchQuery', searchQuery: this.searchQuery });
+      window.dataLayer.push({ event: 'searchQuery', searchValue: this.searchQuery });
       this.fetchPosts();
     },
     decodeHTML(html) {
