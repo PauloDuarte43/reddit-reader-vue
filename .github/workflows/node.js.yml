@@ -1,9 +1,7 @@
-# This workflow will do a clean installation of node dependencies, cache/restore them, build the source code and run tests across different versions of node
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
-
 name: Node.js CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [ "master" ]
   pull_request:
@@ -11,7 +9,6 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     strategy:
@@ -19,29 +16,26 @@ jobs:
         node-version: [18.19.1]
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up SSH
-      run: |
-        mkdir -p ~/.ssh
-        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H teamdraw.dev.pauloduarte.tec.br >> ~/.ssh/known_hosts
+      - uses: actions/checkout@v4
 
-      env:
-        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
 
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v3
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-    - run: npm install
-    - run: npm run build
+      - run: npm install
+      - run: npm run build
 
-    - name: Deploy to server
-      run: |
-        rsync -avz --delete dist/ opc@teamdraw.dev.pauloduarte.tec.br:/home/opc/projects/nginx-docker/reddit/web
-        # ssh ubuntu@rr.dev.pauloduarte.tec.br 'cd /usr/local/src/nginx-docker && docker-compose stop && docker-compose up --build -d'
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: "us-east-1"
 
-      env:
-        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: Remove existing files from S3
+        run: aws s3 rm s3://reddit.pauloduarte.tec.br --recursive
+        
+      - name: Deploy to S3
+        run: aws s3 cp dist/ s3://reddit.pauloduarte.tec.br --recursive --acl public-read
