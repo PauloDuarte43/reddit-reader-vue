@@ -129,7 +129,7 @@ export default {
     const over18Arg = urlParams.get('over18');
     if (over18Arg && over18Arg == 'true') {
       this.showOver18Posts = true;
-      this.showOver18Posts = true;
+      this.includeOver18 = true;
       localStorage.setItem('showOver18Posts', this.showOver18Posts);
       localStorage.setItem('includeOver18', this.includeOver18);
     } else {
