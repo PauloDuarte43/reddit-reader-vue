@@ -116,15 +116,27 @@ export default {
   },
   created() {
     const urlParams = new URLSearchParams(window.location.search);
+
     const subredditFromQuery = urlParams.get('subreddit');
     if (subredditFromQuery) {
       dataLayer.push({ event: 'subreddit', subredditValue: subredditFromQuery });
       this.currentSubreddit = subredditFromQuery;
     }
+
     this.fetchPosts();
     window.addEventListener('scroll', this.handleScroll);
-    this.showOver18Posts = localStorage.getItem('showOver18Posts') === 'true';
-    this.includeOver18 = localStorage.getItem('includeOver18') === 'true';
+
+    const over18Arg = urlParams.get('over18');
+    if (over18Arg && over18Arg == 'true') {
+      this.showOver18Posts = true;
+      this.showOver18Posts = true;
+      localStorage.setItem('showOver18Posts', this.showOver18Posts);
+      localStorage.setItem('includeOver18', this.includeOver18);
+    } else {
+      this.showOver18Posts = localStorage.getItem('showOver18Posts') === 'true';
+      this.includeOver18 = localStorage.getItem('includeOver18') === 'true';
+    }
+
     this.orderBy = localStorage.getItem('orderBy') || 'best';
   },
   destroyed() {
